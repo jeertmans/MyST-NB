@@ -16,6 +16,7 @@ import nbformat as nbf
 import pytest
 import sphinx
 from sphinx.util.console import nocolor
+from packaging.version import Version
 
 pytest_plugins = "sphinx.testing.fixtures"
 
@@ -25,6 +26,7 @@ set_notebook_diff_ignores({"/nbformat_minor": True})
 set_notebook_diff_targets(metadata=False)
 
 TEST_FILE_DIR = Path(__file__).parent.joinpath("notebooks")
+SPHINX_VERSION = Version(sphinx.__version__)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -173,12 +175,12 @@ def sphinx_run(sphinx_params, make_app, tmp_path):
     from sphinx.testing.path import path
 
     if "working_dir" in sphinx_params:
-        base_dir = path(sphinx_params["working_dir"]) / str(uuid.uuid4())
+        base_dir = Path(sphinx_params["working_dir"]) / str(uuid.uuid4())
     else:
-        base_dir = path(os.fspath(tmp_path))
+        base_dir = tmp_path
     
     srcdir = base_dir / "source"
-    srcdir.makedirs(exist_ok=True)
+    srcdir.mkdir(exist_ok=True)
     os.chdir(base_dir)
     (srcdir / "conf.py").write_text(
         "# conf overrides (passed directly to sphinx):\n"
@@ -191,11 +193,15 @@ def sphinx_run(sphinx_params, make_app, tmp_path):
     for nb_file in sphinx_params["files"]:
         nb_path = TEST_FILE_DIR.joinpath(nb_file)
         assert nb_path.exists(), nb_path
-        (srcdir / nb_file).parent.makedirs(exist_ok=True)
+        (srcdir / nb_file).parent.mkdir(exist_ok=True)
         (srcdir / nb_file).write_text(nb_path.read_text(encoding="utf8"))
 
     nocolor()
-    app = make_app(buildername=buildername, srcdir=srcdir, confoverrides=confoverrides)
+    app = make_app(
+        buildername=buildername, 
+        srcdir=srcdir if SPHINX_VERSION >= Version("7.0.0") else path(os.fspath(srcdir)), 
+        confoverrides=confoverrides
+    )
 
     yield SphinxFixture(app, sphinx_params["files"])
 
