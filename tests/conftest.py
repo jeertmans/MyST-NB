@@ -148,7 +148,7 @@ def sphinx_params(request):
 
 
 @pytest.fixture()
-def sphinx_run(sphinx_params, make_app, tempdir):
+def sphinx_run(sphinx_params, make_app, tmp_path):
     """A fixture to setup and run a sphinx build, in a sandboxed folder.
 
     The `myst_nb` extension ius added by default,
@@ -168,12 +168,15 @@ def sphinx_run(sphinx_params, make_app, tempdir):
     confoverrides.update(conf)
 
     current_dir = os.getcwd()
-    if "working_dir" in sphinx_params:
-        from sphinx.testing.path import path
 
+    # Sphinx's test app still requires legacy 
+    from sphinx.testing.path import path
+
+    if "working_dir" in sphinx_params:
         base_dir = path(sphinx_params["working_dir"]) / str(uuid.uuid4())
     else:
-        base_dir = tempdir
+        base_dir = path(os.fspath(tmp_path))
+    
     srcdir = base_dir / "source"
     srcdir.makedirs(exist_ok=True)
     os.chdir(base_dir)
